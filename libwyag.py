@@ -253,3 +253,15 @@ class GitBlob(GitObject):
 
     def deserialize(self, data):
         self.blobdata = data
+
+argsp = argsubparsers.add_parser("cat-file",
+                                 help="Provide content of repository objects")
+
+argsp.add_argument("type",
+                   metavar="type",
+                   choices=["blob", "commit", "tag", "tree"],
+                   help="Specify the type")
+
+argsp.add_argument("object",
+                   metavar="object",
+                   help="The object to display")
