@@ -316,3 +316,74 @@ def object_hash(fd, fmt, repo=None):
         case _: raise Exception(f"Unknown type {fmt}!")
 
     return object_write(obj, repo)
+
+def kvlm_parse(raw, start=0, dct=None):
+    if not dct:
+        dct = dict()
+        # We don't put dict() as a default argument because Python would
+        # reuse the same dictionary for every call, which we don't want.
+
+    # This function is recursive: it reads one key/value pair at a time,
+    # then calls itself to read the next one.
+
+    # Find the next space and newline in the raw data
+    spc = raw.find(b' ', start)
+    nl = raw.find(b'\n', start)
+
+    # If the next space comes before the newline, it's a key/value pair.
+    # Otherwise, it's the commit message at the end.
+
+    # BASE CASE
+    # If there is no space or a newline comes first, we are at the message.
+    # Store the remaining data as the message under key None and stop.
+    if (spc < 0) or (nl < spc):
+        assert nl == start
+        dct[None] = raw[start+1:]
+        return dct
+
+    # RECURSIVE CASE
+    # We have a key/value pair, so extract the key
+    key = raw[start:spc]
+
+    # Find where the value ends.
+    # Lines starting with a space are continuation lines,
+    # so keep going until we find a newline not followed by a space.
+    end = start
+    while True:
+        end = raw.find(b'\n', end+1)
+        if raw[end+1] != ord(' '): break
+
+    # Get the value, and remove the extra spaces at the start of continuation lines
+    value = raw[spc+1:end].replace(b'\n ', b'\n')
+
+    # Don't overwrite existing data contents
+    # If the key already exists, turn it into a list or add to the list
+    if key in dct:
+        if type(dct[key]) == list:
+            dct[key].append(value)
+        else:
+            dct[key] = [ dct[key], value ]
+    else:
+        dct[key]=value
+    # Call the function again to read the next key/value pair
+    return kvlm_parse(raw, start=end+1, dct=dct)
+
+def kvlm_serialize(kvlm):
+    ret = b''
+
+    # Output fields
+    for k in kvlm.keys():
+        # Skip the message itself
+        if k == None: continue
+        val = kvlm[k]
+        # Normalize to a list
+        if type(val) != list:
+            val = [ val ]
+
+        for v in val:
+            ret += k + b' ' + (v.replace(b'\n', b'\n ')) + b'\n'
+
+    # Append message
+    ret += b'\n' + kvlm[None]
+
+    return ret
