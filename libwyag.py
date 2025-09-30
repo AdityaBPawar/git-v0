@@ -540,3 +540,15 @@ def ls_tree(repo, ref, recursive=None, prefix=""):
             type = item.mode[0:1]
         else:
             type = item.mode[0:2]
+
+        match type: # Determine the type.
+            case b'04': type = "tree"
+            case b'10': type = "blob" # A regular file.
+            case b'12': type = "blob" # A symlink. Blob contents is link target.
+            case b'16': type = "commit" # A submodule
+            case _: raise Exception(f"Weird tree leaf mode {item.mode}")
+
+        if not (recursive and type=='tree'): # This is a leaf
+            print(f"{'0' * (6 - len(item.mode)) + item.mode.decode("ascii")} {type} {item.sha}\t{os.path.join(prefix, item.path)}")
+        else: # This is a branch, recurse
+            ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
