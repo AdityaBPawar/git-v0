@@ -645,3 +645,6 @@ def show_ref(repo, refs, with_hash=True, prefix=""):
             print (f"{prefix}{k}")
         else:
             show_ref(repo, v, with_hash=with_hash, prefix=f"{prefix}{k}")
+
+class GitTag(GitCommit):
+    fmt = b'tag'
