@@ -1102,3 +1102,14 @@ def check_ignore(rules, path):
 
     return check_ignore_absolute(rules.absolute, path)
 
+
+argsp = argsubparsers.add_parser("status", help = "Show the working tree status.")
+
+def cmd_status(_):
+    repo = repo_find()
+    index = index_read(repo)
+
+    cmd_status_branch(repo)
+    cmd_status_head_index(repo, index)
+    print()
+    cmd_status_index_worktree(repo, index)
