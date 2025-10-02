@@ -1129,3 +1129,42 @@ def cmd_status_branch(repo):
         print(f"On branch {branch}.")
     else:
         print(f"HEAD detached at {object_find(repo, 'HEAD')}")
+
+def tree_to_dict(repo, ref, prefix=""):
+    ret = dict()
+    tree_sha = object_find(repo, ref, fmt=b"tree")
+    tree = object_read(repo, tree_sha)
+
+    for leaf in tree.items:
+        full_path = os.path.join(prefix, leaf.path)
+
+        # We read the object to extract its type (this is uselessly
+        # expensive: we could just open it as a file and read the
+        # first few bytes)
+        is_subtree = leaf.mode.startswith(b'04')
+
+        # Depending on the type, we either store the path (if it's a
+        # blob, so a regular file), or recurse (if it's another tree,
+        # so a subdir)
+        if is_subtree:
+            ret.update(tree_to_dict(repo, leaf.sha, full_path))
+        else:
+            ret[full_path] = leaf.sha
+    return ret
+
+def cmd_status_head_index(repo, index):
+    print("Changes to be committed:")
+
+    head = tree_to_dict(repo, "HEAD")
+    for entry in index.entries:
+        if entry.name in head:
+            if head[entry.name] != entry.sha:
+                print("  modified:", entry.name)
+            del head[entry.name] # Delete the key
+        else:
+            print("  added:   ", entry.name)
+
+    # Keys still in HEAD are files that we haven't met in the index,
+    # and thus have been deleted.
+    for entry in head.keys():
+        print("  deleted: ", entry)
